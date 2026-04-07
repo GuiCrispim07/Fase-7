@@ -29,7 +29,6 @@ FLAME_BLUE = (80, 160, 255)
 FLAME_WHITE = (255, 240, 200)
 
 SOLAR_ORB = (255, 220, 60)
-SOLAR_GLOW = (255, 200, 40)
 
 BULLET_COLOR = (120, 255, 180)
 BULLET_GLOW = (60, 200, 120)
@@ -42,7 +41,7 @@ TANK_BULLET = (220, 180, 40)
 
 CRYSTAL_COLORS = [(100, 200, 255), (180, 100, 255), (100, 255, 180), (255, 180, 100)]
 
-HUD_BG = (0, 0, 0, 140)
+
 ENERGY_BAR_BG = (30, 30, 40)
 ENERGY_BAR_FILL = (255, 210, 50)
 ENERGY_BAR_LOW = (255, 80, 60)
@@ -57,7 +56,6 @@ font_medium = pygame.font.SysFont('arial', 40, True)
 font_small = pygame.font.SysFont('arial', 26)
 font_tiny = pygame.font.SysFont('arial', 20)
 
-# ===================== PARTÍCULAS =====================
 class Particle:
     def __init__(self, x, y, color, vx=0, vy=0, life=20, size=4, gravity=0.0, shrink=True):
         self.x = float(x)
@@ -88,7 +86,6 @@ class Particle:
         pygame.draw.circle(surface, (r, g, b), (int(self.x), int(self.y)), sz)
 
 
-# ===================== HOPE (JOGADOR) =====================
 class Hope:
     def __init__(self):
         self.width = 40
@@ -99,72 +96,69 @@ class Hope:
         self.speed = 6
         self.lives = 3
         self.max_lives = 5
-        self.hit_timer = 0  # invencibilidade
+        self.hit_timer = 0
 
-        # Energia solar
         self.energy = 100.0
         self.max_energy = 100.0
-        self.energy_drain = 0.09  # por frame (~2.4%/s)
+        self.energy_drain = 0.08
         self.jetpack_on = True
 
-        # Tiro
         self.shoot_cooldown = 0
-        self.shoot_rate = 10  # frames entre tiros
+        self.shoot_rate = 10
 
-        # Animação
         self.anim_timer = 0
         self.flame_particles = []
 
     def update(self, keys):
         self.anim_timer += 1
 
-        # Movimento horizontal
+
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
             self.x -= self.speed
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
             self.x += self.speed
 
-        # Limites — paredes da caverna (margem ~80px cada lado)
         cave_margin = 80
         if self.x < cave_margin:
             self.x = cave_margin
         if self.x + self.width > WIDTH - cave_margin:
             self.x = WIDTH - cave_margin - self.width
 
-        # Movimento vertical (leve, pra desviar)
+
         if keys[pygame.K_UP] or keys[pygame.K_w]:
             self.y -= self.speed * 0.6
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
             self.y += self.speed * 0.6
 
-        # Limites verticais
+
         if self.y < HEIGHT * 0.15:
             self.y = HEIGHT * 0.15
-        if self.y + self.height > HEIGHT - 30:
+
+        if self.jetpack_on and self.y + self.height > HEIGHT - 30:
             self.y = HEIGHT - 30 - self.height
 
         self.rect.x = int(self.x)
         self.rect.y = int(self.y)
 
-        # Energia solar
+
         self.energy -= self.energy_drain
         if self.energy <= 0:
             self.energy = 0
             self.jetpack_on = False
-            # Sem energia, Hope cai devagar
-            self.y += 1.5
+            # Sem energia, Hope cai
+            self.y += 4.0
         else:
             self.jetpack_on = True
 
-        # Tiro cooldown
+
         if self.shoot_cooldown > 0:
             self.shoot_cooldown -= 1
 
-        # Invencibilidade
+
         if self.hit_timer > 0:
             self.hit_timer -= 1
 
-        # Partículas da chama do jetpack
+
         if self.jetpack_on:
             for _ in range(2):
                 fx = self.x + self.width // 2 + random.uniform(-8, 8)
@@ -178,7 +172,7 @@ class Hope:
                              gravity=0.1)
                 self.flame_particles.append(p)
         else:
-            # Fumaça fraca quando sem energia
+
             if self.anim_timer % 4 == 0:
                 fx = self.x + self.width // 2 + random.uniform(-5, 5)
                 fy = self.y + self.height
@@ -188,7 +182,7 @@ class Hope:
                              life=10, size=3, gravity=0.05)
                 self.flame_particles.append(p)
 
-        # Atualizar partículas
+
         for p in self.flame_particles:
             p.update()
         self.flame_particles = [p for p in self.flame_particles if p.life > 0]
@@ -205,54 +199,39 @@ class Hope:
         if self.hit_timer > 0:
             return False
         self.lives -= 1
-        self.hit_timer = 90  # 1.5s de invencibilidade
+        self.hit_timer = 90
         return True
 
-    def collect_energy(self, amount=25):
+    def collect_energy(self, amount=30):
         self.energy = min(self.max_energy, self.energy + amount)
 
     def draw(self, surface):
-        # Piscando quando invencível
         if self.hit_timer > 0 and (self.hit_timer // 5) % 2 == 0:
-            return  # frame invisível
+            return
 
-        # Partículas da chama (atrás)
+
         for p in self.flame_particles:
             p.draw(surface)
 
         x, y = int(self.x), int(self.y)
 
-        # Corpo (traje espacial)
         pygame.draw.rect(surface, HOPE_BODY, (x + 5, y + 18, 30, 35), border_radius=4)
-
-        # Cabeça/Capacete
         pygame.draw.ellipse(surface, HOPE_BODY, (x + 6, y, 28, 24))
-        # Visor
         pygame.draw.ellipse(surface, HOPE_VISOR, (x + 10, y + 4, 20, 14))
-        # Brilho no visor
         pygame.draw.ellipse(surface, (220, 250, 255), (x + 13, y + 6, 6, 4))
-
-        # Jetpack nas costas
         pygame.draw.rect(surface, HOPE_JETPACK, (x + 2, y + 22, 8, 20), border_radius=2)
         pygame.draw.rect(surface, HOPE_JETPACK, (x + 30, y + 22, 8, 20), border_radius=2)
-
-        # Braços
         pygame.draw.rect(surface, HOPE_BODY, (x, y + 22, 7, 16), border_radius=3)
         pygame.draw.rect(surface, HOPE_BODY, (x + 33, y + 22, 7, 16), border_radius=3)
-
-        # Pernas
         pygame.draw.rect(surface, HOPE_BODY, (x + 10, y + 50, 9, 10), border_radius=2)
         pygame.draw.rect(surface, HOPE_BODY, (x + 22, y + 50, 9, 10), border_radius=2)
-
-        # Indicação de energia solar — glow suave ao redor quando energia alta
         if self.energy > 50:
-            glow_alpha = int((self.energy / 100) * 40)
-            glow_surf = pygame.Surface((60, 75), pygame.SRCALPHA)
-            pygame.draw.ellipse(glow_surf, (255, 220, 60, glow_alpha), (0, 0, 60, 75))
-            surface.blit(glow_surf, (x - 10, y - 10))
+            ga = int((self.energy / 100) * 40)
+            gs = pygame.Surface((60, 75), pygame.SRCALPHA)
+            pygame.draw.ellipse(gs, (255, 220, 60, ga), (0, 0, 60, 75))
+            surface.blit(gs, (x - 10, y - 10))
 
 
-# ===================== TIRO DE HOPE =====================
 class Bullet:
     def __init__(self, x, y):
         self.x = float(x)
@@ -270,27 +249,24 @@ class Bullet:
         self.rect.x = int(self.x) - 3
         if self.y < -20:
             self.alive = False
-        # Trail
+
         self.trail.append((self.x, self.y + 10))
         if len(self.trail) > 6:
             self.trail.pop(0)
 
     def draw(self, surface):
-        # Trail
         for i, (tx, ty) in enumerate(self.trail):
             alpha = (i + 1) / len(self.trail)
             sz = max(1, int(3 * alpha))
             c = (int(BULLET_GLOW[0] * alpha), int(BULLET_GLOW[1] * alpha), int(BULLET_GLOW[2] * alpha))
             pygame.draw.circle(surface, c, (int(tx), int(ty)), sz)
-        # Projétil principal
+
         pygame.draw.rect(surface, BULLET_COLOR, (int(self.x) - 3, int(self.y), 6, 18), border_radius=3)
-        # Glow
-        glow = pygame.Surface((16, 28), pygame.SRCALPHA)
-        pygame.draw.ellipse(glow, (120, 255, 180, 60), (0, 0, 16, 28))
-        surface.blit(glow, (int(self.x) - 8, int(self.y) - 5))
+        g = pygame.Surface((16, 28), pygame.SRCALPHA)
+        pygame.draw.ellipse(g, (120, 255, 180, 60), (0, 0, 16, 28))
+        surface.blit(g, (int(self.x) - 8, int(self.y) - 5))
 
 
-# ===================== TIRO DOS UMANS =====================
 class EnemyBullet:
     def __init__(self, x, y, speed=5):
         self.x = float(x)
@@ -313,7 +289,6 @@ class EnemyBullet:
         surface.blit(glow, (int(self.x) - 9, int(self.y) - 5))
 
 
-# ===================== ORBE SOLAR =====================
 class SolarOrb:
     def __init__(self, x, y):
         self.x = float(x)
@@ -321,7 +296,7 @@ class SolarOrb:
         self.rect = pygame.Rect(int(x) - 15, int(y) - 15, 30, 30)
         self.alive = True
         self.timer = random.uniform(0, math.pi * 2)
-        self.speed = 1.5  # desce devagar
+        self.speed = 1.5
 
     def update(self):
         self.y += self.speed
@@ -332,18 +307,16 @@ class SolarOrb:
             self.alive = False
 
     def draw(self, surface):
-        # Glow pulsante
         pulse = math.sin(self.timer) * 0.3 + 0.7
         glow_size = int(28 * pulse)
         glow = pygame.Surface((glow_size * 2, glow_size * 2), pygame.SRCALPHA)
         pygame.draw.circle(glow, (255, 220, 60, int(50 * pulse)), (glow_size, glow_size), glow_size)
         surface.blit(glow, (int(self.x) - glow_size, int(self.y) - glow_size))
 
-        # Orbe principal
         pygame.draw.circle(surface, SOLAR_ORB, (int(self.x), int(self.y)), 12)
         pygame.draw.circle(surface, (255, 250, 200), (int(self.x) - 3, int(self.y) - 3), 5)
 
-        # Raios
+
         for angle_offset in range(0, 360, 45):
             angle = math.radians(angle_offset + self.timer * 30)
             rx = int(self.x + math.cos(angle) * 18 * pulse)
@@ -351,10 +324,8 @@ class SolarOrb:
             pygame.draw.line(surface, (255, 240, 100), (int(self.x), int(self.y)), (rx, ry), 1)
 
 
-# ===================== UMANS (INIMIGOS) =====================
-
 class UmanDrone:
-    """Tipo básico — desce reto"""
+
     def __init__(self, x, y):
         self.x = float(x)
         self.y = float(y)
@@ -364,7 +335,7 @@ class UmanDrone:
         self.speed = 3.0
         self.hp = 1
         self.alive = True
-        self.score = 10
+        self.score = 1
 
     def update(self, hope):
         self.y += self.speed
@@ -372,22 +343,18 @@ class UmanDrone:
         self.rect.y = int(self.y)
         if self.y > HEIGHT + 40:
             self.alive = False
-        return None  # sem tiro
+        return None
 
     def draw(self, surface):
         x, y = int(self.x), int(self.y)
-        # Corpo
         pygame.draw.rect(surface, DRONE_COLOR, (x, y + 10, 58, 28), border_radius=6)
-        # Asas/Hélice
         wing_off = math.sin(pygame.time.get_ticks() * 0.015) * 6
         pygame.draw.line(surface, (180, 180, 190), (x - 8, y + 16 + wing_off), (x + 12, y + 16), 4)
         pygame.draw.line(surface, (180, 180, 190), (x + 66, y + 16 + wing_off), (x + 46, y + 16), 4)
-        # Olho vermelho
         pygame.draw.circle(surface, (255, 50, 50), (x + 29, y + 22), 6)
 
-
 class UmanZigzag:
-    """Desce em S"""
+
     def __init__(self, x, y):
         self.x = float(x)
         self.y = float(y)
@@ -400,17 +367,14 @@ class UmanZigzag:
         self.alive = True
         self.timer = random.uniform(0, math.pi * 2)
         self.amplitude = 100
-        self.score = 15
+        self.score = 1
 
     def update(self, hope):
         self.timer += 0.04
         self.y += self.speed
         self.x = self.base_x + math.sin(self.timer) * self.amplitude
-        # Limitar nas paredes
-        if self.x < 85:
-            self.x = 85
-        if self.x + self.width > WIDTH - 85:
-            self.x = WIDTH - 85 - self.width
+        if self.x < 85: self.x = 85
+        if self.x + self.width > WIDTH - 85: self.x = WIDTH - 85 - self.width
         self.rect.x = int(self.x)
         self.rect.y = int(self.y)
         if self.y > HEIGHT + 40:
@@ -419,19 +383,16 @@ class UmanZigzag:
 
     def draw(self, surface):
         x, y = int(self.x), int(self.y)
-        # Corpo triangular
         points = [(x + 27, y), (x, y + 54), (x + 54, y + 54)]
         pygame.draw.polygon(surface, ZIGZAG_COLOR, points)
         pygame.draw.polygon(surface, (180, 100, 220), points, 2)
-        # Olhos
         pygame.draw.circle(surface, (255, 200, 255), (x + 18, y + 28), 6)
         pygame.draw.circle(surface, (255, 200, 255), (x + 36, y + 28), 6)
         pygame.draw.circle(surface, (60, 0, 80), (x + 18, y + 28), 3)
         pygame.draw.circle(surface, (60, 0, 80), (x + 36, y + 28), 3)
 
-
 class UmanDiver:
-    """Mergulha em direção a Hope"""
+
     def __init__(self, x, y):
         self.x = float(x)
         self.y = float(y)
@@ -442,11 +403,11 @@ class UmanDiver:
         self.dive_speed = 6.0
         self.hp = 2
         self.alive = True
-        self.phase = "approach"  # approach -> aim -> dive
+        self.phase = "approach"
         self.aim_timer = 0
         self.vx = 0
         self.vy = 0
-        self.score = 25
+        self.score = 2
 
     def update(self, hope):
         if self.phase == "approach":
@@ -457,11 +418,9 @@ class UmanDiver:
 
         elif self.phase == "aim":
             self.aim_timer -= 1
-            # Tremor de mira
             self.x += random.uniform(-2, 2)
             if self.aim_timer <= 0:
                 self.phase = "dive"
-                # Calcular direção para Hope
                 dx = (hope.x + hope.width / 2) - (self.x + self.width / 2)
                 dy = (hope.y + hope.height / 2) - (self.y + self.height / 2)
                 dist = max(1, math.sqrt(dx * dx + dy * dy))
@@ -492,9 +451,8 @@ class UmanDiver:
         if self.phase == "aim":
             pygame.draw.circle(surface, (255, 255, 0, 100), (x + 30, y + 30), 36, 2)
 
-
 class UmanTank:
-    """Blindado — lento, atira projéteis"""
+
     def __init__(self, x, y):
         self.x = float(x)
         self.y = float(y)
@@ -505,8 +463,8 @@ class UmanTank:
         self.hp = 3
         self.alive = True
         self.shoot_timer = 0
-        self.shoot_rate = 80  # frames
-        self.score = 40
+        self.shoot_rate = 80
+        self.score = 2
 
     def update(self, hope):
         self.y += self.speed
@@ -524,23 +482,16 @@ class UmanTank:
 
     def draw(self, surface):
         x, y = int(self.x), int(self.y)
-        # Corpo robusto
         pygame.draw.rect(surface, TANK_COLOR, (x + 6, y, 54, 66), border_radius=8)
-        # Borda blindada
         pygame.draw.rect(surface, (200, 180, 80), (x + 6, y, 54, 66), 3, border_radius=8)
-        # Placa frontal
         pygame.draw.rect(surface, (160, 140, 40), (x + 14, y + 8, 38, 16), border_radius=3)
-        # Olho/Sensor
         pygame.draw.circle(surface, (255, 100, 100), (x + 33, y + 36), 9)
         pygame.draw.circle(surface, (255, 200, 200), (x + 33, y + 36), 5)
-        # Canhão
         pygame.draw.rect(surface, (120, 100, 30), (x + 28, y + 56, 12, 14))
 
 
-# ===================== ARMADILHAS (LEVEL DEVIL) =====================
-
 class Stalactite:
-    """Pedra que cai do teto sem aviso — Level Devil style"""
+
     def __init__(self, x):
         self.x = float(x)
         self.y = -60.0
@@ -549,14 +500,12 @@ class Stalactite:
         self.rect = pygame.Rect(int(x), int(self.y), self.width, self.height)
         self.speed = 0.0
         self.falling = False
-        self.warning_timer = 30  # frames de aviso (sutil)
+        self.warning_timer = 3  # quase instantâneo
         self.alive = True
 
     def update(self):
         if self.warning_timer > 0:
             self.warning_timer -= 1
-            # Treme antes de cair
-            self.x += random.uniform(-2, 2)
             if self.warning_timer <= 0:
                 self.falling = True
         
@@ -572,23 +521,13 @@ class Stalactite:
 
     def draw(self, surface):
         x, y = int(self.x), int(self.y)
-        # Forma de stalactite (triângulo pontudo)
-        points = [(x + 14, y + 55), (x, y + 10), (x + 6, y), (x + 22, y), (x + 28, y + 10)]
-        pygame.draw.polygon(surface, (90, 70, 65), points)
-        pygame.draw.polygon(surface, (120, 95, 85), points, 2)
-        # Brilho
+        pts = [(x + 14, y + 55), (x, y + 10), (x + 6, y), (x + 22, y), (x + 28, y + 10)]
+        pygame.draw.polygon(surface, (90, 70, 65), pts)
+        pygame.draw.polygon(surface, (120, 95, 85), pts, 2)
         pygame.draw.line(surface, (140, 120, 110), (x + 10, y + 5), (x + 14, y + 35), 2)
-        
-        # Indicador de aviso (linha vermelha tênue no topo)
-        if self.warning_timer > 0 and self.warning_timer < 20:
-            alpha = int((20 - self.warning_timer) / 20 * 120)
-            warn_surf = pygame.Surface((4, HEIGHT), pygame.SRCALPHA)
-            warn_surf.fill((255, 50, 50, alpha))
-            surface.blit(warn_surf, (x + 12, 0))
-
 
 class FakeOrb:
-    """Parece uma orbe solar mas EXPLODE e drena energia — pura maldade"""
+
     def __init__(self, x, y):
         self.x = float(x)
         self.y = float(y)
@@ -664,9 +603,8 @@ class GlitchText:
         surface.blit(shadow, (cx + random.randint(-5, 5), cy + random.randint(-3, 3)))
         surface.blit(text_surf, (cx + ox, cy + oy))
 
-
 class TrapSystem:
-    """Sistema de armadilhas estilo Level Devil — surpresas em altitudes específicas"""
+
     def __init__(self):
         # Armadilhas programadas por altitude (em metros)
         # Cada trap é ativada UMA vez
@@ -691,86 +629,78 @@ class TrapSystem:
         self.blackout_alpha = 0
 
     def check_traps(self, altitude_m, hope, particles, shake):
-        """Verifica e ativa armadilhas conforme altitude"""
         
-        # ====== 40m — Primeira stalactite (susto inicial) ======
+        # ====== 40m — Primeira stalactite (susto do nada!) ======
         if altitude_m >= 40 and 'stalk_60' not in self.traps_triggered:
             self.traps_triggered.add('stalk_60')
-            # Cai exatamente onde Hope está!
+            # Cai exatamente onde Hope está — sem aviso nenhum
             self.active_stalactites.append(Stalactite(hope.x + hope.width // 2 - 14))
-            self.glitch_texts.append(GlitchText("CUIDADO!", 50))
 
-        # ====== 75m — Fake orb ======
+        # ====== 75m — Fake orb (parece boa mas...) ======
         if altitude_m >= 75 and 'fake_120' not in self.traps_triggered:
             self.traps_triggered.add('fake_120')
             self.active_fake_orbs.append(FakeOrb(WIDTH // 2, -20))
 
-        # ====== 110m — 3 stalactites em sequência ======
+        # ====== 110m — 3 stalactites rápidas ======
         if altitude_m >= 110 and 'stalk_180' not in self.traps_triggered:
             self.traps_triggered.add('stalk_180')
             for i in range(3):
                 s = Stalactite(random.randint(100, WIDTH - 130))
-                s.warning_timer = 20 + i * 15  # em sequência
+                s.warning_timer = 3 + i * 8  # quase instantâneas, em sequência rápida
                 self.active_stalactites.append(s)
 
-        # ====== 140m — Paredes fechando! ======
+        # ====== 140m — Paredes fechando sem aviso! ======
         if altitude_m >= 140 and 'squeeze_220' not in self.traps_triggered:
             self.traps_triggered.add('squeeze_220')
             self.squeeze_active = True
-            self.squeeze_timer = 240  # 4 segundos
-            self.squeeze_target = 0.6
-            self.glitch_texts.append(GlitchText("GLITCH: COMPRIMINDO...", 70))
+            self.squeeze_timer = 200
+            self.squeeze_target = 0.5
 
-        # ====== 175m — Inversão de controles ======
+        # ====== 175m — Inversão de controles (sem aviso!) ======
         if altitude_m >= 175 and 'invert_280' not in self.traps_triggered:
             self.traps_triggered.add('invert_280')
             self.invert_controls = True
-            self.invert_timer = 240  # 4 segundos
-            self.glitch_texts.append(GlitchText("CONTROLES INVERTIDOS!", 80))
-            shake.trigger(15, 4)
+            self.invert_timer = 180
+            shake.trigger(8, 3)
 
         # ====== 210m — Chuva de stalactites ======
         if altitude_m >= 210 and 'stalk_330' not in self.traps_triggered:
             self.traps_triggered.add('stalk_330')
-            for i in range(5):
-                s = Stalactite(100 + i * 150)
-                s.warning_timer = 10 + i * 8
+            for i in range(4):
+                s = Stalactite(120 + i * 170)
+                s.warning_timer = 2 + i * 6
                 self.active_stalactites.append(s)
-            self.glitch_texts.append(GlitchText("DESMORONAMENTO!", 60))
 
-        # ====== 235m — Fake orb + apagão ======
+        # ====== 235m — Fake orb + apagão surpresa ======
         if altitude_m >= 235 and 'blackout_370' not in self.traps_triggered:
             self.traps_triggered.add('blackout_370')
             self.blackout_active = True
-            self.blackout_timer = 150  # 2.5 segundos
+            self.blackout_timer = 120
             self.active_fake_orbs.append(FakeOrb(hope.x + 60, -20))
-            self.glitch_texts.append(GlitchText("GLITCH: ESCURIDÃO", 60))
 
         # ====== 260m — Squeeze + stalactites combo ======
         if altitude_m >= 260 and 'combo_410' not in self.traps_triggered:
             self.traps_triggered.add('combo_410')
             self.squeeze_active = True
-            self.squeeze_timer = 180
-            self.squeeze_target = 0.5
-            for i in range(3):
-                s = Stalactite(200 + i * 200)
-                s.warning_timer = 30 + i * 20
+            self.squeeze_timer = 150
+            self.squeeze_target = 0.4
+            for i in range(2):
+                s = Stalactite(250 + i * 250)
+                s.warning_timer = 3 + i * 10
                 self.active_stalactites.append(s)
 
         # ====== 280m — Inversão + stalactites finais ======
         if altitude_m >= 280 and 'final_460' not in self.traps_triggered:
             self.traps_triggered.add('final_460')
             self.invert_controls = True
-            self.invert_timer = 180
-            for i in range(4):
-                s = Stalactite(hope.x + random.randint(-100, 100))
-                s.warning_timer = 15 + i * 12
+            self.invert_timer = 150
+            for i in range(3):
+                s = Stalactite(hope.x + random.randint(-80, 80))
+                s.warning_timer = 3 + i * 8
                 self.active_stalactites.append(s)
-            self.glitch_texts.append(GlitchText("GLITCH: CAOS TOTAL!", 90))
-            shake.trigger(20, 6)
+            shake.trigger(10, 4)
 
     def update(self, hope, particles, shake):
-        """Atualiza todos os efeitos ativos"""
         
         # Stalactites
         for s in self.active_stalactites:
@@ -848,8 +778,7 @@ class TrapSystem:
         self.glitch_texts = [gt for gt in self.glitch_texts if gt.alive]
 
     def get_squeeze_margin(self):
-        """Retorna margem extra das paredes (usada para limitar Hope)"""
-        return int(self.squeeze_amount * 120)  # até 120px extra de cada lado
+        return int(self.squeeze_amount * 120)
 
     def draw(self, surface):
         # Stalactites
@@ -892,12 +821,11 @@ class TrapSystem:
                 surface.blit(inv_text, (WIDTH // 2 - inv_text.get_width() // 2, HEIGHT - 40))
 
 
-# ===================== CRISTAL DECORATIVO =====================
 class Crystal:
     def __init__(self, x, y, side):
         self.x = x
-        self.y = y  # posição relativa ao scroll  
-        self.side = side  # 'left' ou 'right'
+        self.y = y
+        self.side = side
         self.color = random.choice(CRYSTAL_COLORS)
         self.size = random.randint(8, 18)
         self.glow_timer = random.uniform(0, math.pi * 2)
@@ -923,7 +851,6 @@ class Crystal:
         pygame.draw.polygon(surface, WHITE, points, 1)
 
 
-# ===================== CENÁRIO DA CAVERNA =====================
 class CaveBackground:
     def __init__(self):
         self.crystals = []
@@ -1011,7 +938,6 @@ class CaveBackground:
             surface.blit(light_surf, (0, 0))
 
 
-# ===================== SCREEN SHAKE =====================
 class ScreenShake:
     def __init__(self):
         self.duration = 0
@@ -1033,7 +959,6 @@ class ScreenShake:
             self.offset_y = 0
 
 
-# ===================== WAVE SPAWNER =====================
 class WaveSpawner:
     def __init__(self):
         self.timer = 0
@@ -1094,8 +1019,7 @@ class WaveSpawner:
                 enemies.append(UmanTank(self.get_random_x(), -70))
 
 
-# ===================== HUD =====================
-def draw_hud(surface, hope, altitude_m):
+def draw_hud(surface, hope, altitude_m, score=0):
     # Fundo semi-transparente do HUD
     hud_surf = pygame.Surface((WIDTH, 45), pygame.SRCALPHA)
     hud_surf.fill((0, 0, 0, 120))
@@ -1103,7 +1027,7 @@ def draw_hud(surface, hope, altitude_m):
 
     # Barra de energia solar
     bar_x, bar_y = 15, 12
-    bar_w, bar_h = 180, 20
+    bar_w, bar_h = 150, 20
 
     pygame.draw.rect(surface, ENERGY_BAR_BG, (bar_x - 2, bar_y - 2, bar_w + 4, bar_h + 4), border_radius=4)
     fill_ratio = hope.energy / hope.max_energy
@@ -1115,9 +1039,9 @@ def draw_hud(surface, hope, altitude_m):
     energy_text = font_tiny.render(f"{int(hope.energy)}%", True, WHITE)
     surface.blit(energy_text, (bar_x + bar_w + 32, bar_y))
 
-    # Altitude
-    alt_text = font_small.render(f"{int(altitude_m)}m / 300m", True, WHITE)
-    surface.blit(alt_text, (WIDTH // 2 - alt_text.get_width() // 2, 10))
+    # Pontuação
+    score_text = font_small.render(f"PTS: {score}", True, (255, 220, 80))
+    surface.blit(score_text, (WIDTH // 2 - score_text.get_width() // 2, 10))
 
     # Vidas (corações)
     for i in range(hope.lives):
@@ -1128,41 +1052,386 @@ def draw_hud(surface, hope, altitude_m):
         pygame.draw.polygon(surface, HEART_COLOR, [(hx - 6, hy + 8), (hx + 5, hy + 20), (hx + 16, hy + 8)])
 
 
-# ===================== TELAS =====================
-def draw_victory_screen(surface):
-    overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-    overlay.fill((0, 0, 0, 160))
-    surface.blit(overlay, (0, 0))
+# ===================== CUTSCENE FINAL (VITÓRIA) =====================
+class EndCutscene:
+    """Hope sai da caverna e vê a superfície destruída"""
+    def __init__(self, final_score):
+        self.timer = 0
+        self.done = False
+        self.final_score = final_score
+        self.particles = []
+        self.fade_alpha = 0
+        self.shake_x = 0
+        self.shake_y = 0
 
-    # Luz do topo
-    for ly in range(HEIGHT):
-        alpha = int((1 - ly / HEIGHT) * 50)
-        pygame.draw.rect(overlay, (255, 250, 200, alpha), (0, ly, WIDTH, 2))
-    surface.blit(overlay, (0, 0))
+        # Fases (frames):
+        # 0: Tela branca (flash de luz do sol) — "Hope alcançou a superfície"  (0-120)
+        # 1: Hope subindo pela abertura da caverna, céu aparecendo              (120-300)
+        # 2: Hope pousa na superfície, vilarejo destruído ao fundo              (300-520)
+        # 3: Textos finais + pontuação                                          (520-720)
+        # 4: "Continua..." + Fade                                               (720-860)
 
-    title = font_large.render("HOPE ESCAPOU!", True, VICTORY_COLOR)
-    sub = font_small.render("A energia solar iluminou o caminho.", True, (200, 255, 220))
-    ods = font_small.render("ODS 7 — Energia Limpa e Acessível", True, SOLAR_ORB)
-    restart = font_tiny.render("Pressione R para jogar novamente", True, WHITE)
+        self.hope_x = WIDTH // 2 - 20.0
+        self.hope_y = HEIGHT + 60.0  # começa fora da tela por baixo
+        self.hope_landed = False
 
-    surface.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT // 2 - 120))
-    surface.blit(sub, (WIDTH // 2 - sub.get_width() // 2, HEIGHT // 2 - 30))
-    surface.blit(ods, (WIDTH // 2 - ods.get_width() // 2, HEIGHT // 2 + 20))
-    surface.blit(restart, (WIDTH // 2 - restart.get_width() // 2, HEIGHT // 2 + 80))
+        self.ground_y = 450
+
+        # Nuvens
+        self.clouds = []
+        for _ in range(6):
+            self.clouds.append({
+                'x': random.randint(-50, WIDTH + 50),
+                'y': random.randint(30, 180),
+                'w': random.randint(80, 180),
+                'h': random.randint(25, 45),
+                'speed': random.uniform(0.2, 0.6),
+            })
+
+        # Ruínas do vilarejo
+        self.ruins = []
+        for i in range(10):
+            self.ruins.append({
+                'x': 40 + i * 90,
+                'h': random.randint(30, 100),
+                'w': random.randint(25, 55),
+                'broken': random.randint(5, 20),
+                'has_window': random.random() > 0.3,
+            })
+
+        # Árvores mortas
+        self.trees = []
+        for i in range(5):
+            self.trees.append({
+                'x': random.randint(80, WIDTH - 80),
+                'h': random.randint(40, 80),
+            })
+
+        self.sun_glow = 0.0
+
+        self.texts = [
+            {"text": "Hope alcançou a superfície.", "start": 10, "end": 110, "y": HEIGHT // 2 - 20, "color": (255, 255, 240), "font": "medium"},
+            {"text": "Pela primeira vez em anos... o céu.", "start": 180, "end": 290, "y": 60, "color": (180, 210, 255), "font": "small"},
+            {"text": "Mas o que os Umans fizeram...", "start": 320, "end": 450, "y": 60, "color": (200, 150, 130), "font": "small"},
+            {"text": "O vilarejo estava em ruínas.", "start": 380, "end": 510, "y": 95, "color": (180, 130, 110), "font": "small"},
+            {"text": "HOPE ESCAPOU!", "start": 530, "end": 700, "y": HEIGHT // 2 - 100, "color": VICTORY_COLOR, "font": "large"},
+            {"text": f"Pontuação: {final_score}", "start": 560, "end": 700, "y": HEIGHT // 2 - 30, "color": (255, 220, 80), "font": "medium"},
+            {"text": "A energia solar iluminou o caminho.", "start": 590, "end": 700, "y": HEIGHT // 2 + 30, "color": (200, 255, 220), "font": "small"},
+            {"text": "ODS 7 — Energia Limpa e Acessível", "start": 610, "end": 700, "y": HEIGHT // 2 + 70, "color": SOLAR_ORB, "font": "small"},
+            {"text": "Mas a luta não acabou...", "start": 730, "end": 840, "y": HEIGHT // 2 - 20, "color": (200, 180, 160), "font": "medium"},
+            {"text": "Continua...", "start": 770, "end": 850, "y": HEIGHT // 2 + 30, "color": (160, 160, 180), "font": "small"},
+        ]
+
+    def get_phase(self):
+        if self.timer < 120: return 0
+        if self.timer < 300: return 1
+        if self.timer < 520: return 2
+        if self.timer < 720: return 3
+        return 4
+
+    def update(self):
+        self.timer += 1
+        phase = self.get_phase()
+
+        # Fase 0: Flash branco diminuindo
+        if phase == 0:
+            self.sun_glow = max(0, 1.0 - self.timer / 120.0)
+
+        # Fase 1: Hope subindo de baixo
+        elif phase == 1:
+            if self.hope_y > 250:
+                self.hope_y -= 3.0
+            # Partículas de jetpack
+            if self.timer % 2 == 0:
+                for _ in range(2):
+                    self.particles.append(Particle(
+                        self.hope_x + 20 + random.uniform(-6, 6),
+                        self.hope_y + 55,
+                        random.choice([FLAME_ORANGE, FLAME_BLUE, FLAME_WHITE]),
+                        vx=random.uniform(-1.5, 1.5),
+                        vy=random.uniform(3, 6),
+                        life=random.randint(10, 18),
+                        size=random.randint(3, 5),
+                        gravity=0.1
+                    ))
+
+        # Fase 2: Hope aterrissa
+        elif phase == 2:
+            if not self.hope_landed:
+                if self.hope_y < self.ground_y - 60:
+                    self.hope_y += 1.0
+                    # Jetpack diminuindo
+                    if self.timer % 3 == 0:
+                        self.particles.append(Particle(
+                            self.hope_x + 20, self.hope_y + 55,
+                            random.choice([FLAME_ORANGE, (80, 80, 80)]),
+                            vx=random.uniform(-1, 1),
+                            vy=random.uniform(1, 3),
+                            life=10, size=3, gravity=0.1
+                        ))
+                else:
+                    self.hope_landed = True
+                    # Poeira ao pousar
+                    for _ in range(15):
+                        self.particles.append(Particle(
+                            self.hope_x + 20, self.ground_y - 5,
+                            (140, 120, 100),
+                            vx=random.uniform(-4, 4),
+                            vy=random.uniform(-2, 0),
+                            life=random.randint(15, 30),
+                            size=random.randint(2, 5),
+                            gravity=0.1
+                        ))
+                    self.shake_x = random.randint(-3, 3)
+                    self.shake_y = random.randint(-2, 2)
+
+            if self.shake_x != 0 or self.shake_y != 0:
+                self.shake_x = int(self.shake_x * 0.85)
+                self.shake_y = int(self.shake_y * 0.85)
+
+        # Fase 4: Fade
+        elif phase == 4:
+            self.fade_alpha = min(255, self.fade_alpha + 3)
+            if self.timer > 860:
+                self.done = True
+
+        # Nuvens em movimento
+        for cloud in self.clouds:
+            cloud['x'] += cloud['speed']
+            if cloud['x'] > WIDTH + 100:
+                cloud['x'] = -cloud['w'] - 20
+
+        # Partículas
+        for p in self.particles:
+            p.update()
+        self.particles = [p for p in self.particles if p.life > 0]
+
+    def draw_sky(self, render):
+        """Céu degradê — amanhecer"""
+        for y in range(self.ground_y):
+            ratio = y / self.ground_y
+            r = int(40 + 130 * (1 - ratio))  # azul escuro → laranja
+            g = int(60 + 120 * (1 - ratio))
+            b = int(140 + 60 * ratio)
+            pygame.draw.line(render, (min(255, r), min(255, g), min(255, b)), (0, y), (WIDTH, y))
+
+        # Sol nascendo
+        sun_x, sun_y = WIDTH - 160, 100
+        # Raios
+        for i in range(12):
+            angle = math.radians(i * 30 + self.timer * 0.3)
+            rx = sun_x + int(math.cos(angle) * 80)
+            ry = sun_y + int(math.sin(angle) * 80)
+            pygame.draw.line(render, (255, 240, 180), (sun_x, sun_y), (rx, ry), 2)
+        # Glow
+        glow = pygame.Surface((200, 200), pygame.SRCALPHA)
+        pygame.draw.circle(glow, (255, 220, 100, 30), (100, 100), 100)
+        pygame.draw.circle(glow, (255, 230, 120, 50), (100, 100), 60)
+        render.blit(glow, (sun_x - 100, sun_y - 100))
+        # Sol
+        pygame.draw.circle(render, (255, 240, 180), (sun_x, sun_y), 30)
+        pygame.draw.circle(render, (255, 250, 220), (sun_x - 5, sun_y - 5), 15)
+
+    def draw_clouds(self, render):
+        for cloud in self.clouds:
+            # Nuvem com múltiplos círculos
+            cx, cy = int(cloud['x']), int(cloud['y'])
+            cw, ch = cloud['w'], cloud['h']
+            for i in range(4):
+                ox = cx + i * (cw // 4)
+                oy = cy + random.randint(-3, 3)
+                sz = ch // 2 + random.randint(-5, 5)
+                pygame.draw.circle(render, (220, 225, 235), (ox, oy), max(8, sz))
+            # Base da nuvem
+            pygame.draw.ellipse(render, (210, 215, 225), (cx - 10, cy - 5, cw, ch))
+
+    def draw_village(self, render):
+        """Vilarejo destruído"""
+        # Chão (terra desolada)
+        pygame.draw.rect(render, (80, 65, 50), (0, self.ground_y, WIDTH, HEIGHT - self.ground_y))
+        # Grama seca
+        for i in range(0, WIDTH, 8):
+            gh = random.randint(3, 10)
+            pygame.draw.line(render, (100, 85, 50), (i, self.ground_y), (i + random.randint(-3, 3), self.ground_y - gh), 1)
+
+        # Ruínas
+        for ruin in self.ruins:
+            rx = ruin['x']
+            rh = ruin['h']
+            rw = ruin['w']
+            by = self.ground_y - rh
+            bt = ruin['broken']
+
+            # Prédio/casa destruída
+            pygame.draw.rect(render, (70, 60, 55), (rx, by, rw, rh))
+            # Topo quebrado
+            pygame.draw.polygon(render, (80, 65, 50), [
+                (rx, by), (rx + bt, by - 10),
+                (rx + rw - bt, by - 6), (rx + rw, by)
+            ])
+            # Janelas quebradas
+            if ruin['has_window'] and rh > 40:
+                wy = by + 15
+                pygame.draw.rect(render, (30, 25, 25), (rx + 6, wy, 12, 14))
+                # Vidro quebrado (X)
+                pygame.draw.line(render, (90, 80, 70), (rx + 6, wy), (rx + 18, wy + 14), 1)
+                pygame.draw.line(render, (90, 80, 70), (rx + 18, wy), (rx + 6, wy + 14), 1)
+            # Rachaduras
+            pygame.draw.line(render, (55, 45, 40), (rx + rw // 2, by + 5),
+                             (rx + rw // 2 + 8, by + rh - 5), 1)
+
+        # Árvores mortas
+        for tree in self.trees:
+            tx = tree['x']
+            th = tree['h']
+            ty = self.ground_y
+            # Tronco
+            pygame.draw.line(render, (60, 45, 35), (tx, ty), (tx, ty - th), 3)
+            # Galhos secos
+            pygame.draw.line(render, (60, 45, 35), (tx, ty - th + 10), (tx - 15, ty - th - 10), 2)
+            pygame.draw.line(render, (60, 45, 35), (tx, ty - th + 15), (tx + 18, ty - th - 5), 2)
+            pygame.draw.line(render, (60, 45, 35), (tx, ty - th + 25), (tx - 10, ty - th + 10), 2)
+
+        # Fumaça saindo de uma ruína
+        if self.timer % 6 == 0:
+            smoke_x = self.ruins[2]['x'] + self.ruins[2]['w'] // 2
+            smoke_y = self.ground_y - self.ruins[2]['h'] - 5
+            self.particles.append(Particle(
+                smoke_x, smoke_y, (100, 100, 110),
+                vx=random.uniform(-0.5, 0.5),
+                vy=random.uniform(-1.5, -0.5),
+                life=random.randint(40, 70),
+                size=random.randint(3, 6),
+                shrink=False
+            ))
+
+    def draw_cave_opening(self, render):
+        """Abertura da caverna no chão"""
+        cx = WIDTH // 2
+        cy = self.ground_y
+        # Buraco
+        pygame.draw.ellipse(render, (15, 10, 18), (cx - 50, cy - 15, 100, 35))
+        # Borda rochosa
+        pygame.draw.ellipse(render, (90, 75, 65), (cx - 50, cy - 15, 100, 35), 3)
+        # Escuridão interior
+        pygame.draw.ellipse(render, (5, 2, 8), (cx - 40, cy - 10, 80, 25))
+
+    def draw_hope(self, render, hx, hy):
+        """Hope na cutscene final"""
+        pygame.draw.rect(render, HOPE_BODY, (hx + 5, hy + 18, 30, 35), border_radius=4)
+        pygame.draw.ellipse(render, HOPE_BODY, (hx + 6, hy, 28, 24))
+        pygame.draw.ellipse(render, HOPE_VISOR, (hx + 10, hy + 4, 20, 14))
+        pygame.draw.ellipse(render, (220, 250, 255), (hx + 13, hy + 6, 6, 4))
+        pygame.draw.rect(render, HOPE_JETPACK, (hx + 2, hy + 22, 8, 20), border_radius=2)
+        pygame.draw.rect(render, HOPE_JETPACK, (hx + 30, hy + 22, 8, 20), border_radius=2)
+        pygame.draw.rect(render, HOPE_BODY, (hx, hy + 22, 7, 16), border_radius=3)
+        pygame.draw.rect(render, HOPE_BODY, (hx + 33, hy + 22, 7, 16), border_radius=3)
+        pygame.draw.rect(render, HOPE_BODY, (hx + 10, hy + 50, 9, 10), border_radius=2)
+        pygame.draw.rect(render, HOPE_BODY, (hx + 22, hy + 50, 9, 10), border_radius=2)
+
+    def draw(self, surface):
+        phase = self.get_phase()
+        render = pygame.Surface((WIDTH, HEIGHT))
+
+        if phase == 0:
+            # Flash branco diminuindo → céu aparece
+            self.draw_sky(render)
+            self.draw_clouds(render)
+            self.draw_village(render)
+            self.draw_cave_opening(render)
+
+            # White flash overlay
+            flash = pygame.Surface((WIDTH, HEIGHT))
+            flash.fill((255, 255, 240))
+            flash.set_alpha(int(self.sun_glow * 255))
+            render.blit(flash, (0, 0))
+
+        elif phase >= 1:
+            self.draw_sky(render)
+            self.draw_clouds(render)
+            self.draw_village(render)
+
+            # Partículas
+            for p in self.particles:
+                p.draw(render)
+
+            # Abertura da caverna
+            self.draw_cave_opening(render)
+
+            # Hope
+            self.draw_hope(render, int(self.hope_x), int(self.hope_y))
+
+            # Jetpack chama (se ainda voando)
+            if not self.hope_landed:
+                for _ in range(3):
+                    fx = int(self.hope_x) + 20 + random.randint(-6, 6)
+                    fy = int(self.hope_y) + 58 + random.randint(0, 8)
+                    color = random.choice([FLAME_ORANGE, FLAME_BLUE])
+                    pygame.draw.circle(render, color, (fx, fy), random.randint(2, 5))
+
+        # Textos
+        for txt in self.texts:
+            if txt['start'] <= self.timer <= txt['end']:
+                fade_in = 25
+                fade_out = 20
+                elapsed = self.timer - txt['start']
+                remaining = txt['end'] - self.timer
+                if elapsed < fade_in:
+                    alpha = int((elapsed / fade_in) * 255)
+                elif remaining < fade_out:
+                    alpha = int((remaining / fade_out) * 255)
+                else:
+                    alpha = 255
+                alpha = max(0, min(255, alpha))
+                base = txt['color']
+                r = min(255, int(base[0] * alpha / 255))
+                g = min(255, int(base[1] * alpha / 255))
+                b = min(255, int(base[2] * alpha / 255))
+                if txt['font'] == 'large':
+                    f = font_large
+                elif txt['font'] == 'medium':
+                    f = font_medium
+                else:
+                    f = font_small
+                text_surf = f.render(txt['text'], True, (r, g, b))
+                render.blit(text_surf, (WIDTH // 2 - text_surf.get_width() // 2, txt['y']))
+
+        # Barras cinemáticas
+        bar_h = 50
+        pygame.draw.rect(render, BLACK, (0, 0, WIDTH, bar_h))
+        pygame.draw.rect(render, BLACK, (0, HEIGHT - bar_h, WIDTH, bar_h))
+
+        # Prompt de restart (fase 3+)
+        if phase >= 3 and self.timer > 550:
+            if (self.timer // 35) % 2 == 0:
+                restart = font_tiny.render("Pressione R para jogar novamente", True, (150, 150, 160))
+                render.blit(restart, (WIDTH // 2 - restart.get_width() // 2, HEIGHT - bar_h + 15))
+
+        # Fade final
+        if self.fade_alpha > 0:
+            fade = pygame.Surface((WIDTH, HEIGHT))
+            fade.fill(BLACK)
+            fade.set_alpha(self.fade_alpha)
+            render.blit(fade, (0, 0))
+
+        surface.fill(BLACK)
+        surface.blit(render, (self.shake_x, self.shake_y))
 
 
-def draw_defeat_screen(surface, altitude_m):
+def draw_defeat_screen(surface, altitude_m, score=0):
     overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 180))
     surface.blit(overlay, (0, 0))
 
     title = font_large.render("HOPE CAIU...", True, DEFEAT_COLOR)
     sub = font_small.render(f"Altitude alcançada: {int(altitude_m)}m", True, WHITE)
+    score_txt = font_medium.render(f"Pontuação: {score}", True, (255, 220, 80))
     restart = font_tiny.render("Pressione R para tentar novamente", True, WHITE)
 
-    surface.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT // 2 - 80))
-    surface.blit(sub, (WIDTH // 2 - sub.get_width() // 2, HEIGHT // 2 + 10))
-    surface.blit(restart, (WIDTH // 2 - restart.get_width() // 2, HEIGHT // 2 + 70))
+    surface.blit(title, (WIDTH // 2 - title.get_width() // 2, HEIGHT // 2 - 100))
+    surface.blit(sub, (WIDTH // 2 - sub.get_width() // 2, HEIGHT // 2 - 10))
+    surface.blit(score_txt, (WIDTH // 2 - score_txt.get_width() // 2, HEIGHT // 2 + 35))
+    surface.blit(restart, (WIDTH // 2 - restart.get_width() // 2, HEIGHT // 2 + 90))
 
 
 def draw_start_screen(surface, anim_timer):
@@ -1219,10 +1488,378 @@ def draw_start_screen(surface, anim_timer):
         pygame.draw.circle(surface, color, (fx, fy), random.randint(3, 6))
 
 
+# ===================== CUTSCENE (INTRODUÇÃO ANIMADA) =====================
+class Cutscene:
+    """Cutscene dentro da caverna — Hope salva prisioneiros e recebe jetpack"""
+    def __init__(self):
+        self.timer = 0
+        self.done = False
+        self.particles = []
+        self.shake_x = 0
+        self.shake_y = 0
+
+        # Fases (frames, 60fps):
+        # 0: Tela escura — "Nas profundezas da caverna..."         (0-150)
+        # 1: Hope andando pela caverna, cristais brilhando          (150-350)
+        # 2: Hope encontra cela com cientista preso                 (350-520)
+        # 3: Cientista entrega jetpack — diálogo                    (520-700)
+        # 4: Jetpack liga! Explosão de partículas, Hope sobe        (700-840)
+        # 5: Fade out                                               (840-920)
+
+        self.hope_x = -60.0
+        self.hope_y = 470.0
+        self.hope_walking = False
+        self.walk_frame = 0
+
+        self.ground_y = 530
+
+        # Cristais na parede da caverna
+        self.crystals = []
+        for _ in range(15):
+            self.crystals.append({
+                'x': random.randint(10, WIDTH - 10),
+                'y': random.randint(80, self.ground_y - 40),
+                'side': random.choice(['left', 'right']),
+                'color': random.choice(CRYSTAL_COLORS),
+                'size': random.randint(5, 14),
+                'phase': random.uniform(0, math.pi * 2),
+            })
+        # Filtrar pra ficar nas paredes
+        for c in self.crystals:
+            if c['side'] == 'left':
+                c['x'] = random.randint(15, 80)
+            else:
+                c['x'] = random.randint(WIDTH - 80, WIDTH - 15)
+
+        # Posição da cela do cientista
+        self.cell_x = 550
+
+        # Textos narrativos
+        self.texts = [
+            {"text": "Nas profundezas da caverna...", "start": 20, "end": 140, "y": HEIGHT // 2 - 30, "color": (160, 160, 180), "font": "medium"},
+            {"text": "Hope resgatava os prisioneiros dos Umans.", "start": 60, "end": 140, "y": HEIGHT // 2 + 20, "color": (120, 120, 140), "font": "small"},
+            {"text": "Mais uma cela adiante...", "start": 170, "end": 340, "y": 70, "color": (140, 200, 180), "font": "small"},
+            {"text": "Um cientista!", "start": 360, "end": 500, "y": 70, "color": (200, 200, 140), "font": "medium"},
+            {"text": '"Pegue... meu último protótipo."', "start": 530, "end": 640, "y": 70, "color": (180, 220, 255), "font": "small"},
+            {"text": '"Um jetpack movido a energia solar."', "start": 580, "end": 680, "y": 105, "color": (180, 220, 255), "font": "small"},
+            {"text": '"Alcance a superfície e salve nosso vilarejo!"', "start": 640, "end": 695, "y": 140, "color": (255, 220, 100), "font": "small"},
+            {"text": "JETPACK SOLAR: ATIVADO", "start": 715, "end": 830, "y": 90, "color": (120, 255, 180), "font": "medium"},
+            {"text": "ODS 7 — Energia Limpa e Acessível", "start": 760, "end": 830, "y": 135, "color": (255, 200, 60), "font": "tiny"},
+        ]
+
+        self.jetpack_on = False
+        self.screen_flash = 0
+        self.fade_alpha = 0
+
+    def get_phase(self):
+        if self.timer < 150: return 0
+        if self.timer < 350: return 1
+        if self.timer < 520: return 2
+        if self.timer < 700: return 3
+        if self.timer < 840: return 4
+        return 5
+
+    def update(self):
+        self.timer += 1
+        phase = self.get_phase()
+
+        if phase == 0:
+            pass
+
+        elif phase == 1:
+            self.hope_walking = True
+            if self.hope_x < 300:
+                self.hope_x += 1.6
+            self.walk_frame += 1
+
+        elif phase == 2:
+            self.hope_walking = True
+            if self.hope_x < self.cell_x - 90:
+                self.hope_x += 1.4
+            else:
+                self.hope_walking = False
+            self.walk_frame += 1
+
+        elif phase == 3:
+            self.hope_walking = False
+
+        elif phase == 4:
+            if not self.jetpack_on:
+                self.jetpack_on = True
+                self.screen_flash = 20
+                for _ in range(45):
+                    self.particles.append(Particle(
+                        self.hope_x + 20, self.hope_y + 55,
+                        random.choice([FLAME_ORANGE, FLAME_BLUE, FLAME_WHITE, (255, 255, 200)]),
+                        vx=random.uniform(-8, 8),
+                        vy=random.uniform(-2, 10),
+                        life=random.randint(20, 50),
+                        size=random.randint(3, 8),
+                        gravity=0.2
+                    ))
+                self.shake_x = random.randint(-6, 6)
+                self.shake_y = random.randint(-6, 6)
+
+            self.hope_y -= 2.8
+
+            if self.timer % 2 == 0:
+                for _ in range(3):
+                    self.particles.append(Particle(
+                        self.hope_x + 20 + random.uniform(-8, 8),
+                        self.hope_y + 55,
+                        random.choice([FLAME_ORANGE, FLAME_BLUE, FLAME_WHITE]),
+                        vx=random.uniform(-2, 2),
+                        vy=random.uniform(3, 7),
+                        life=random.randint(10, 20),
+                        size=random.randint(3, 6),
+                        gravity=0.1
+                    ))
+
+            if self.screen_flash > 0:
+                self.screen_flash -= 1
+                self.shake_x = random.randint(-3, 3)
+                self.shake_y = random.randint(-3, 3)
+            else:
+                self.shake_x = int(self.shake_x * 0.9)
+                self.shake_y = int(self.shake_y * 0.9)
+
+        elif phase == 5:
+            self.fade_alpha = min(255, self.fade_alpha + 4)
+            if self.timer > 920:
+                self.done = True
+
+        for p in self.particles:
+            p.update()
+        self.particles = [p for p in self.particles if p.life > 0]
+
+        # Gotículas de água caindo
+        if phase >= 1 and phase <= 3 and self.timer % 12 == 0:
+            self.particles.append(Particle(
+                random.randint(90, WIDTH - 90), random.randint(-5, 0),
+                (80, 120, 160),
+                vx=0, vy=random.uniform(1.5, 3),
+                life=random.randint(40, 80),
+                size=2, shrink=False
+            ))
+
+    def draw_cave_bg(self, render):
+        """Desenha o interior da caverna"""
+        render.fill(CAVE_BG)
+
+        # Paredes da caverna
+        for i in range(-1, HEIGHT // 50 + 2):
+            y = i * 50
+            w_left = 55 + int(math.sin(y * 0.03 + 1) * 18)
+            w_right = 55 + int(math.sin(y * 0.025 + 3) * 18)
+            pygame.draw.rect(render, CAVE_WALL_1, (0, y, w_left + 15, 52))
+            pygame.draw.rect(render, CAVE_WALL_1, (WIDTH - w_right - 15, y, w_right + 15, 52))
+            pygame.draw.rect(render, CAVE_WALL_2, (0, y, w_left, 52))
+            pygame.draw.rect(render, CAVE_WALL_2, (WIDTH - w_right, y, w_right, 52))
+            # Rochas decorativas
+            if i % 3 == 0:
+                pygame.draw.circle(render, CAVE_ROCK, (w_left - 3, y + 25), 6)
+                pygame.draw.circle(render, CAVE_ROCK, (WIDTH - w_right + 3, y + 25), 6)
+
+        # Chão da caverna
+        pygame.draw.rect(render, CAVE_WALL_2, (0, self.ground_y, WIDTH, HEIGHT - self.ground_y))
+        pygame.draw.rect(render, CAVE_WALL_1, (0, self.ground_y, WIDTH, 5))
+        for i in range(0, WIDTH, 40):
+            pygame.draw.circle(render, CAVE_ROCK, (i + random.randint(0, 10), self.ground_y + 2), 4)
+
+        # Teto
+        pygame.draw.rect(render, CAVE_WALL_2, (0, 0, WIDTH, 55))
+        pygame.draw.rect(render, CAVE_WALL_1, (0, 50, WIDTH, 8))
+
+        # Cristais brilhantes nas paredes
+        for c in self.crystals:
+            pulse = math.sin(c['phase'] + self.timer * 0.04) * 0.4 + 0.6
+            sz = c['size']
+            # Glow
+            glow_sz = int(sz * 2 * pulse)
+            glow = pygame.Surface((glow_sz * 2, glow_sz * 2), pygame.SRCALPHA)
+            r, g, b = c['color']
+            pygame.draw.circle(glow, (r, g, b, int(30 * pulse)), (glow_sz, glow_sz), glow_sz)
+            render.blit(glow, (c['x'] - glow_sz, c['y'] - glow_sz))
+            # Cristal (losango)
+            pts = [(c['x'], c['y'] - sz), (c['x'] + sz // 2, c['y']),
+                   (c['x'], c['y'] + sz // 2), (c['x'] - sz // 2, c['y'])]
+            pygame.draw.polygon(render, c['color'], pts)
+
+        # Tochas na parede (iluminação fraca)
+        torch_positions = [120, 350, 600]
+        for tx in torch_positions:
+            ty = self.ground_y - 60
+            # Suporte
+            pygame.draw.rect(render, (90, 70, 50), (tx - 2, ty, 6, 25))
+            # Chama
+            flame_flicker = random.randint(-2, 2)
+            pygame.draw.circle(render, (255, 160, 40), (tx + 1 + flame_flicker, ty - 4), 6)
+            pygame.draw.circle(render, (255, 220, 80), (tx + 1, ty - 3), 3)
+            # Glow da tocha
+            glow = pygame.Surface((80, 80), pygame.SRCALPHA)
+            pygame.draw.circle(glow, (255, 150, 40, 15), (40, 40), 40)
+            render.blit(glow, (tx - 39, ty - 44))
+
+    def draw_scientist(self, render, x, y):
+        """Desenha o cientista preso"""
+        # Jaleco branco
+        pygame.draw.rect(render, (200, 200, 210), (x + 5, y + 16, 26, 35), border_radius=3)
+        # Cabeça
+        pygame.draw.ellipse(render, (220, 190, 170), (x + 7, y, 22, 20))
+        # Óculos
+        pygame.draw.circle(render, (180, 200, 255), (x + 13, y + 8), 5, 1)
+        pygame.draw.circle(render, (180, 200, 255), (x + 23, y + 8), 5, 1)
+        pygame.draw.line(render, (180, 200, 255), (x + 18, y + 8), (x + 18, y + 8), 1)
+        # Cabelo (grisalho)
+        pygame.draw.ellipse(render, (160, 160, 170), (x + 8, y - 2, 20, 10))
+        # Pernas
+        pygame.draw.rect(render, (60, 60, 80), (x + 10, y + 48, 8, 10), border_radius=2)
+        pygame.draw.rect(render, (60, 60, 80), (x + 19, y + 48, 8, 10), border_radius=2)
+
+    def draw_cell_bars(self, render, x, y):
+        """Grades da cela — algumas já quebradas"""
+        bar_color = (100, 90, 80)
+        for i in range(6):
+            bx = x + i * 14
+            if i == 2 or i == 3:
+                # Grades quebradas (Hope já abriu)
+                pygame.draw.line(render, bar_color, (bx, y), (bx + 5, y + 30), 3)
+                pygame.draw.line(render, bar_color, (bx + 3, y + 50), (bx, y + 80), 3)
+            else:
+                pygame.draw.line(render, bar_color, (bx, y), (bx, y + 80), 3)
+        # Barra horizontal
+        pygame.draw.line(render, bar_color, (x, y + 25), (x + 70, y + 25), 2)
+        pygame.draw.line(render, bar_color, (x, y + 55), (x + 70, y + 55), 2)
+
+    def draw_hope(self, render, hx, hy):
+        """Desenha Hope animada"""
+        pygame.draw.rect(render, HOPE_BODY, (hx + 5, hy + 18, 30, 35), border_radius=4)
+        pygame.draw.ellipse(render, HOPE_BODY, (hx + 6, hy, 28, 24))
+        pygame.draw.ellipse(render, HOPE_VISOR, (hx + 10, hy + 4, 20, 14))
+        pygame.draw.ellipse(render, (220, 250, 255), (hx + 13, hy + 6, 6, 4))
+        pygame.draw.rect(render, HOPE_JETPACK, (hx + 2, hy + 22, 8, 20), border_radius=2)
+        pygame.draw.rect(render, HOPE_JETPACK, (hx + 30, hy + 22, 8, 20), border_radius=2)
+        pygame.draw.rect(render, HOPE_BODY, (hx, hy + 22, 7, 16), border_radius=3)
+        pygame.draw.rect(render, HOPE_BODY, (hx + 33, hy + 22, 7, 16), border_radius=3)
+
+        if self.hope_walking:
+            leg_off = int(math.sin(self.walk_frame * 0.15) * 5)
+            pygame.draw.rect(render, HOPE_BODY, (hx + 10, hy + 50 + leg_off, 9, 10), border_radius=2)
+            pygame.draw.rect(render, HOPE_BODY, (hx + 22, hy + 50 - leg_off, 9, 10), border_radius=2)
+        else:
+            pygame.draw.rect(render, HOPE_BODY, (hx + 10, hy + 50, 9, 10), border_radius=2)
+            pygame.draw.rect(render, HOPE_BODY, (hx + 22, hy + 50, 9, 10), border_radius=2)
+
+        if self.jetpack_on:
+            for _ in range(4):
+                fx = hx + 20 + random.randint(-8, 8)
+                fy = hy + 58 + random.randint(0, 12)
+                color = random.choice([FLAME_ORANGE, FLAME_BLUE, FLAME_WHITE])
+                pygame.draw.circle(render, color, (fx, fy), random.randint(3, 7))
+            glow_surf = pygame.Surface((80, 90), pygame.SRCALPHA)
+            pygame.draw.ellipse(glow_surf, (255, 200, 60, 35), (0, 0, 80, 90))
+            render.blit(glow_surf, (hx - 20, hy - 15))
+
+    def draw(self, surface):
+        phase = self.get_phase()
+        render = pygame.Surface((WIDTH, HEIGHT))
+
+        if phase == 0:
+            render.fill((5, 3, 8))
+            # Gotículas sutis
+            for p in self.particles:
+                p.draw(render)
+
+        elif phase >= 1:
+            self.draw_cave_bg(render)
+
+            # Cela do cientista (aparece a partir da fase 2)
+            if phase >= 2:
+                cx = self.cell_x
+                cy = self.ground_y - 80
+                # Fundo da cela (buraco na parede)
+                pygame.draw.rect(render, (12, 8, 15), (cx - 10, cy, 90, 85))
+                # Grades
+                self.draw_cell_bars(render, cx - 5, cy)
+                # Cientista dentro
+                self.draw_scientist(render, cx + 20, cy + 18)
+
+                # Jetpack no chão (fase 3 — cientista entrega)
+                if phase >= 3 and not self.jetpack_on:
+                    # Jetpack brilhando no chão entre Hope e cientista
+                    jp_x = int(self.hope_x + 60)
+                    jp_y = self.ground_y - 28
+                    # Glow
+                    pulse = math.sin(self.timer * 0.1) * 0.3 + 0.7
+                    glow = pygame.Surface((40, 40), pygame.SRCALPHA)
+                    pygame.draw.circle(glow, (255, 220, 60, int(50 * pulse)), (20, 20), 20)
+                    render.blit(glow, (jp_x - 10, jp_y - 15))
+                    # Jetpack item
+                    pygame.draw.rect(render, HOPE_JETPACK, (jp_x, jp_y, 12, 18), border_radius=2)
+                    pygame.draw.rect(render, HOPE_JETPACK, (jp_x + 8, jp_y, 12, 18), border_radius=2)
+                    pygame.draw.circle(render, SOLAR_ORB, (jp_x + 10, jp_y + 5), 5)
+
+            # Partículas
+            for p in self.particles:
+                p.draw(render)
+
+            # Hope
+            self.draw_hope(render, int(self.hope_x), int(self.hope_y))
+
+        # ---- TEXTOS ----
+        for txt in self.texts:
+            if txt['start'] <= self.timer <= txt['end']:
+                fade_in = 25
+                fade_out = 20
+                elapsed = self.timer - txt['start']
+                remaining = txt['end'] - self.timer
+                if elapsed < fade_in:
+                    alpha = int((elapsed / fade_in) * 255)
+                elif remaining < fade_out:
+                    alpha = int((remaining / fade_out) * 255)
+                else:
+                    alpha = 255
+                alpha = max(0, min(255, alpha))
+                base = txt['color']
+                r = min(255, int(base[0] * alpha / 255))
+                g = min(255, int(base[1] * alpha / 255))
+                b = min(255, int(base[2] * alpha / 255))
+                f = font_medium if txt['font'] == 'medium' else font_tiny if txt['font'] == 'tiny' else font_small
+                text_surf = f.render(txt['text'], True, (r, g, b))
+                render.blit(text_surf, (WIDTH // 2 - text_surf.get_width() // 2, txt['y']))
+
+        # Flash
+        if self.screen_flash > 0:
+            flash = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            flash.fill((255, 240, 200, int((self.screen_flash / 20) * 150)))
+            render.blit(flash, (0, 0))
+
+        # Barras cinemáticas
+        bar_h = 50
+        pygame.draw.rect(render, BLACK, (0, 0, WIDTH, bar_h))
+        pygame.draw.rect(render, BLACK, (0, HEIGHT - bar_h, WIDTH, bar_h))
+
+        # Indicador de pular
+        if self.timer > 60 and (self.timer // 40) % 2 == 0:
+            skip = font_tiny.render("ENTER para pular", True, (90, 90, 100))
+            render.blit(skip, (WIDTH - skip.get_width() - 20, HEIGHT - bar_h + 15))
+
+        # Fade final
+        if self.fade_alpha > 0:
+            fade = pygame.Surface((WIDTH, HEIGHT))
+            fade.fill(BLACK)
+            fade.set_alpha(self.fade_alpha)
+            render.blit(fade, (0, 0))
+
+        surface.fill(BLACK)
+        surface.blit(render, (self.shake_x, self.shake_y))
+
+
 # ===================== GAME LOOP =====================
 def main():
-    state = "START"  # START, PLAYING, VICTORY, DEFEAT
+    state = "INTRO"  # INTRO, START, PLAYING, VICTORY_CUTSCENE, DEFEAT
     anim_timer = 0
+    cutscene = Cutscene()
 
     # Variáveis do jogo (inicializadas no START → PLAYING)
     hope = None
@@ -1238,10 +1875,12 @@ def main():
     altitude_speed = 2.0  # pixels/frame base
     orb_timer = 0
     trap_system = None
+    score = 0
+    end_cutscene = None
 
     def start_game():
         nonlocal hope, bullets, enemies, enemy_bullets, orbs, particles
-        nonlocal spawner, cave_bg, shake, altitude_px, orb_timer, trap_system
+        nonlocal spawner, cave_bg, shake, altitude_px, orb_timer, trap_system, score, end_cutscene
         hope = Hope()
         bullets = []
         enemies = []
@@ -1254,6 +1893,8 @@ def main():
         trap_system = TrapSystem()
         altitude_px = 0.0
         orb_timer = 0
+        score = 0
+        end_cutscene = None
 
     running = True
     while running:
@@ -1263,7 +1904,11 @@ def main():
                 running = False
 
             if event.type == pygame.KEYDOWN:
-                if state == "START":
+                if state == "INTRO":
+                    if event.key == pygame.K_RETURN:
+                        state = "START"
+
+                elif state == "START":
                     if event.key == pygame.K_RETURN:
                         start_game()
                         state = "PLAYING"
@@ -1274,12 +1919,22 @@ def main():
                         if b:
                             bullets.append(b)
 
-                elif state in ("VICTORY", "DEFEAT"):
+                elif state in ("VICTORY_CUTSCENE", "DEFEAT"):
                     if event.key == pygame.K_r:
                         start_game()
                         state = "PLAYING"
 
         anim_timer += 1
+
+        # ---- INTRO (CUTSCENE) ----
+        if state == "INTRO":
+            cutscene.update()
+            if cutscene.done:
+                state = "START"
+            cutscene.draw(screen)
+            pygame.display.flip()
+            clock.tick(FPS)
+            continue
 
         # ---- START SCREEN ----
         if state == "START":
@@ -1397,6 +2052,7 @@ def main():
                             ))
                         if e.hp <= 0:
                             e.alive = False
+                            score += e.score
                             shake.trigger(6, 3)
                             # Explosão
                             for _ in range(15):
@@ -1455,9 +2111,10 @@ def main():
             if hope.y + hope.height > HEIGHT + 10:
                 state = "DEFEAT"
 
-            # Vitória!
+            # Vitória! → Cutscene final
             if altitude_m >= 300:
-                state = "VICTORY"
+                end_cutscene = EndCutscene(score)
+                state = "VICTORY_CUTSCENE"
 
             # Checar se Hope morreu por armadilha
             if hope.lives <= 0:
@@ -1471,10 +2128,18 @@ def main():
                 p.update()
             particles = [p for p in particles if p.life > 0]
 
+        # ---- VICTORY CUTSCENE ----
+        if state == "VICTORY_CUTSCENE":
+            end_cutscene.update()
+            end_cutscene.draw(screen)
+            pygame.display.flip()
+            clock.tick(FPS)
+            continue
+
         # ---- RENDERING ----
         render_surface = pygame.Surface((WIDTH, HEIGHT))
 
-        if state in ("PLAYING", "VICTORY", "DEFEAT"):
+        if state in ("PLAYING", "DEFEAT"):
             altitude_m = altitude_px / 15.0
             progress_ratio = min(1.0, altitude_m / 300.0)
 
@@ -1512,13 +2177,11 @@ def main():
             hope.draw(render_surface)
 
             # HUD
-            draw_hud(render_surface, hope, altitude_m)
+            draw_hud(render_surface, hope, altitude_m, score)
 
-            # Telas de fim
-            if state == "VICTORY":
-                draw_victory_screen(render_surface)
-            elif state == "DEFEAT":
-                draw_defeat_screen(render_surface, altitude_m)
+            # Tela de derrota
+            if state == "DEFEAT":
+                draw_defeat_screen(render_surface, altitude_m, score)
 
         # Aplicar shake
         if state in ("PLAYING",) and shake and shake.duration > 0:
